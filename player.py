@@ -52,30 +52,55 @@ def main():
     mode = args.model
     number_images = args.number_images
     skip_images = args.skip_images
-    pre_training_data = stolen_modules.data_loader_training("E:/BBB", low_res_size=low_res_size, upscale=upscale, manual_data_load=True, HR_Suffix='_720', LR_Suffix='_180', number_images=number_images, skip_images=skip_images)
-    pre_training_data_loader = torch.utils.data.DataLoader(dataset=pre_training_data, num_workers=6, batch_size=batch_size, shuffle=False)
-
-    validating_training_data = stolen_modules.data_loader_validation("E:/BBB",low_res_size=low_res_size, upscale=upscale, manual_data_load=True, HR_Suffix='_720', LR_Suffix='_180', number_images=number_images, skip_images=skip_images)
-    validating_training_data_loader = torch.utils.data.DataLoader(dataset=validating_training_data, num_workers=6, batch_size=1, shuffle=False)
-
-    if(mode == 'ESRGAN' or mode == 'Denser'):
-        generator = common_modules.Generator_Denser(upscale)
-    elif(mode == 'EDSR' or mode == 'LessDense'):
-        #print("ESDSRSRSRSRSRSRSRSRSSSSSSSERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR!")
-        generator = common_modules.Generator_LessDenser(upscale)
-    else:
-        generator = common_modules.Generator_Classic(upscale)
-    generator = generator.cuda()
-    generator.load_state_dict(torch.load(folder_name+'/generator_posttrain_cuda_latest.pth'))
     
-    cap = cv2.VideoCapture('BBB.mp4')
-
+    #if(mode == 'ESRGAN' or mode == 'Denser'):
+    generator = common_modules.Generator_Denser(upscale)
+    #elif(mode == 'EDSR' or mode == 'LessDense'):
+        #print("ESDSRSRSRSRSRSRSRSRSSSSSSSERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR!")
+    #    generator = common_modules.Generator_LessDenser(upscale)
+    #else:
+    #    generator = common_modules.Generator_Classic(upscale)
+    generator = generator.cuda()
+    generator.load_state_dict(torch.load('generator_posttrain_cuda_latest.pth'))
+#    torch.Size([1, 3, 720, 1280])
+    cap, _, l = torchvision.io.read_video('big_buck_bunny_180.mp4')
+    #cap = cv2.VideoCapture('big_buck_bunny_180.mp4')
+    #comp = transforms.Compose([transforms.ToTensor()])
+    figManager = plt.get_current_fig_manager()
+    figManager.full_screen_toggle() 
+    cap.transpose_(3,1)
+    cap.transpose_(2,3)
     with torch.no_grad():
-    	generator.eval()
-    	while(True):
-    		ret, frame = cap.read()
-    		cv2.imshow('frame', frame)
-    		if cv2.waitKey(1) & 0xFF == ord('q'):
-    			break
-    	cap.release()
-    	cv2.destroyAllWindows()
+      generator.eval()
+      i = 0
+      while(i < 500):
+        frame = torch.Tensor(1,3,180,320)
+        frame[0] = cap[i*3].clone()
+        #print(frame[0][1])
+        frame = frame.type(torch.FloatTensor).cuda()
+        im_fake = generator(frame)
+        im_fake = im_fake.type(torch.ByteTensor).cuda()
+        #print(im_fake[0][1])
+        
+        #cv2.imshow('image', im_fake.permute(0,2,3,1).cpu()[0].numpy())
+        #save_image(im_fake, 'frame'+str(i)+'.jpg')
+        figManager = plt.get_current_fig_manager()
+        figManager.full_screen_toggle() 
+        plt.imshow(  im_fake.permute(0,2, 3, 1).cpu()[0]  )
+        plt.show(block=False)
+        plt.pause(0.3)
+        plt.close()
+        i += 1 
+        #ret, frame = cap.read()
+        #im_pil = PIL.Image.fromarray(frame)
+        #im_pil = comp(im_pil)
+        #im_pil_fake = generator(im_pil)
+        #imshow(im_pil_fake)
+        #cv2.imshow('frame', frame)
+        #if cv2.waitKey(1) & 0xFF == ord('q'):
+        # break
+        #i += 1
+      #cap.release()
+      #cv2.destroyAllWindows()
+
+main()
